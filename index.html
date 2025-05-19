@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Podcast Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      scroll-behavior: smooth;
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #FFCC33 0%, #FF9933 100%);
+    }
+    .card-hover-effect {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card-hover-effect:hover {
+      transform: translateY(-5px);
+    }
+    .player-progress {
+      height: 5px;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.3);
+      transition: height 0.2s ease;
+    }
+    .player-progress::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .player-progress:hover {
+      height: 8px;
+    }
+    .player-progress:hover::-webkit-slider-thumb {
+      opacity: 1;
+    }
+    .podcast-card {
+      transition: all 0.3s ease;
+    }
+    .podcast-card:hover .card-overlay {
+      opacity: 1;
+    }
+    .podcast-card:hover .card-play-icon {
+      transform: scale(1.1);
+    }
+    .category-btn.active {
+      background: linear-gradient(135deg, #FFCC33 0%, #FF9933 100%);
+      color: white;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease forwards;
+    }
+    .podcast-details {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    .podcast-card:hover .podcast-details {
+      max-height: 100px;
+    }
+    .nav-link {
+      position: relative;
+      padding-bottom: 2px;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 2px;
+      bottom: 0;
+      left: 0;
+      background-color: #FFCC33;
+      transition: width 0.3s ease;
+    }
+    .nav-link:hover::after {
+      width: 100%;
+    }
+
+     #modal-podcast-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  /* Fix for player UI long titles on mobile */
+  @media (max-width: 768px) {
+    #current-title {
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    #current-author {
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .podcast-card h4 {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow fixed top-0 w-full z-50">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <a href="#" class="text-2xl font-bold gradient-text flex items-center">
+        <span class="material-icons mr-2 text-yellow-500">podcasts</span>
+        <span class="bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-yellow-600">PodcastHub</span>
+      </a>
+      <button id="nav-toggle" class="md:hidden material-icons text-3xl">menu</button>
+      <div id="nav-menu" class="hidden md:flex flex-1 mx-4 items-center space-x-6">
+        <div class="relative flex-1">
+          <input id="search-bar" type="text" placeholder="Search podcasts..." 
+                 class="w-full border rounded-full px-5 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all" />
+          <button id="nav-search-btn" class="absolute right-3 top-1/2 transform -translate-y-1/2 material-icons text-gray-500 hover:text-yellow-500 transition">search</button>
+        </div>
+        <a href="#popular" class="nav-link font-medium hover:text-yellow-500 transition">Trending</a>
+        <a href="#categories" class="nav-link font-medium hover:text-yellow-500 transition">Categories</a>
+        <a href="#recommended" class="nav-link font-medium hover:text-yellow-500 transition">For You</a>
+      </div>
+      <div id="nav-actions" class="hidden md:flex space-x-4">
+        <button id="login-btn" class="px-4 py-2 border border-yellow-500 text-yellow-500 rounded-full hover:bg-yellow-50 transition">Login</button>
+        <button id="signup-btn" class="px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full hover:opacity-90 transition shadow-md">Sign Up</button>
+      </div>
+    </div>
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="md:hidden hidden px-6 pb-4">
+      <div class="mb-4">
+        <input id="search-bar-mobile" type="text" placeholder="Search..." 
+               class="w-full border rounded-full px-5 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+      </div>
+      <div class="space-y-2 mb-4">
+        <a href="#popular" class="block py-2 hover:text-yellow-500 transition">Trending</a>
+        <a href="#categories" class="block py-2 hover:text-yellow-500 transition">Categories</a>
+        <a href="#recommended" class="block py-2 hover:text-yellow-500 transition">For You</a>
+      </div>
+      <div class="flex space-x-4">
+        <button id="login-btn-mobile" class="flex-1 px-4 py-2 border border-yellow-500 text-yellow-500 rounded-full hover:bg-yellow-50 transition">Login</button>
+        <button id="signup-btn-mobile" class="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-full hover:opacity-90 transition shadow-md">Sign Up</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="pt-32 pb-20 bg-gradient-to-br from-yellow-50 to-white">
+    <div class="container mx-auto px-6 relative">
+      <div class="absolute top-0 right-0 -mt-10 opacity-10">
+        <svg viewBox="0 0 200 200" width="400" height="400">
+          <path fill="#FFCC33" d="M45.1,-77.8C54.9,-71.1,57.4,-51.8,65.8,-35.7C74.2,-19.6,88.5,-6.5,89.6,7.2C90.7,20.9,78.6,35.4,67.2,50.1C55.8,64.8,45.1,79.8,30.9,86.3C16.8,92.8,-0.8,90.9,-17.9,87.3C-35,83.6,-51.6,78.3,-62.3,67C-73,55.7,-77.9,38.3,-81.9,21.1C-85.9,3.9,-89,-13.1,-83.8,-27.1C-78.6,-41.1,-65.1,-52.1,-50.6,-56.9C-36.1,-61.7,-20.5,-60.3,-3.2,-55.3C14.1,-50.4,35.3,-84.5,45.1,-77.8Z" transform="translate(100 100)" />
+        </svg>
+      </div>
+      <div class="text-center md:text-left md:w-2/3 relative z-10">
+        <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-yellow-500 to-yellow-600">Discover Amazing</span><br>
+          <span>Podcasts Daily</span>
+        </h1>
+        <p class="text-lg md:text-xl mb-8 text-gray-600 md:pr-10">Explore thousands of podcasts across diverse topics, listen to your favorites and discover new ones, all in one place.</p>
+        <button id="hero-listen-btn" class="inline-flex items-center px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white font-semibold rounded-full hover:shadow-lg transition transform hover:scale-105 shadow-md">
+          <span class="material-icons mr-2">headset</span>Start Listening
+        </button>
+      </div>
+      <div class="hidden md:block absolute right-10 bottom-[-60px]  w-1/3">
+        <img src="/cropped_image.png" alt="Podcast Illustration" class="w-full opacity-90" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Popular Podcasts -->
+  <section id="popular" class="container mx-auto px-6 py-16 mt-10">
+    <div class="flex justify-between items-center mb-8">
+      <h2 id="popular-title" class="text-3xl font-bold">Trending Podcasts</h2>
+      <button class="text-yellow-500 hover:text-yellow-600 transition flex items-center">
+        <span>View all</span>
+        <span class="material-icons">chevron_right</span>
+      </button>
+    </div>
+    <div id="popular-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+  </section>
+
+  <!-- Categories -->
+  <section id="categories" class="py-16 bg-gradient-to-br from-gray-50 to-white">
+    <div class="container mx-auto px-6">
+      <h2 class="text-3xl font-bold mb-8">Browse Categories</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
+        <div data-term="technology" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">devices</span>
+          <span>Technology</span>
+        </div>
+        <div data-term="business" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">business</span>
+          <span>Business</span>
+        </div>
+        <div data-term="health" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">favorite</span>
+          <span>Health</span>
+        </div>
+        <div data-term="education" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">school</span>
+          <span>Education</span>
+        </div>
+        <div data-term="comedy" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">mood</span>
+          <span>Comedy</span>
+        </div>
+        <div data-term="news" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">feed</span>
+          <span>News</span>
+        </div>
+        <div data-term="sports" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">sports_basketball</span>
+          <span>Sports</span>
+        </div>
+        <div data-term="music" class="category-btn cursor-pointer bg-white shadow-md p-6 rounded-lg text-center font-semibold hover:shadow-lg transition flex flex-col items-center">
+          <span class="material-icons text-yellow-500 mb-2">music_note</span>
+          <span>Music</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recommended Podcasts -->
+  <section id="recommended" class="container mx-auto px-6 py-16">
+    <div class="flex justify-between items-center mb-8">
+      <h2 class="text-3xl font-bold">Recommended For You</h2>
+      <button class="text-yellow-500 hover:text-yellow-600 transition flex items-center">
+        <span>View all</span>
+        <span class="material-icons">chevron_right</span>
+      </button>
+    </div>
+    <div id="recommended-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+  </section>
+
+  <!-- Episodes Modal -->
+  <div id="episodes-modal" class="fixed inset-0 bg-black bg-opacity-70  hidden flex items-center justify-center z-50" onclick="closeModalOnOutsideClick(event)">
+  <div class="bg-white rounded-xl w-11/12 md:w-2/3 lg:w-1/2 max-h-[80vh] overflow-hidden p-6 shadow-2xl transform transition-all">
+    <div class="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2 pb-4 z-10">
+      <div class="flex items-center max-w-[calc(100%-40px)] overflow-hidden">
+        <img id="modal-podcast-img" src="" alt="Podcast" class="w-16 h-16 rounded-lg mr-4 object-cover flex-shrink-0">
+        <div class="min-w-0">
+          <h3 id="modal-podcast-title" class="text-2xl font-semibold truncate"></h3>
+          <p id="modal-podcast-author" class="text-gray-600 truncate"></p>
+        </div>
+      </div>
+      <button id="modal-close" class="material-icons cursor-pointer hover:text-yellow-500 transition flex-shrink-0">close</button>
+    </div>
+    <div id="modal-podcast-description" class="text-gray-600 mb-6 text-sm bg-gray-50 p-4 rounded-lg max-h-28 overflow-y-auto"></div>
+    <h4 class="font-semibold text-lg mb-4 flex items-center">
+      <span class="material-icons mr-2 text-yellow-500">playlist_play</span>
+      <span>Latest Episodes</span>
+    </h4>
+    <div id="episodes-list" class="space-y-4 max-h-[40vh] overflow-y-auto pr-2"></div>
+  </div>
+</div>
+
+
+  <!-- Modals: Login & Signup -->
+  <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl w-11/12 md:w-1/3 p-8 text-center shadow-2xl transform transition-all">
+      <div class="flex justify-end">
+        <button id="login-modal-close" class="material-icons cursor-pointer hover:text-yellow-500 transition">close</button>
+      </div>
+      <span class="material-icons text-yellow-500 text-5xl mb-4">check_circle</span>
+      <h3 class="text-2xl font-semibold mb-4">Login Success!</h3>
+      <p class="mb-6 text-gray-600">You have successfully logged in to your PodcastHub account.</p>
+      <button id="login-close" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 rounded-lg hover:opacity-90 transition shadow-md">Continue</button>
+    </div>
+  </div>
+
+  <div id="signup-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl w-11/12 md:w-1/3 p-8 text-center shadow-2xl transform transition-all">
+      <div class="flex justify-end">
+        <button id="signup-modal-close" class="material-icons cursor-pointer hover:text-yellow-500 transition">close</button>
+      </div>
+      <span class="material-icons text-yellow-500 text-5xl mb-4">celebration</span>
+      <h3 class="text-2xl font-semibold mb-4">Welcome to PodcastHub!</h3>
+      <p class="mb-6 text-gray-600">Your account has been created successfully. Start exploring podcasts right away!</p>
+      <button id="signup-close" class="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white py-3 rounded-lg hover:opacity-90 transition shadow-md">Get Started</button>
+    </div>
+  </div>
+
+  <!-- Floating Player -->
+  <div id="player-container" class="fixed bottom-0 left-0 w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg py-4 hidden z-40 transform transition-transform">
+    <div class="container mx-auto px-6">
+      <div class="flex flex-col md:flex-row items-center">
+        <div class="flex items-center mb-4 md:mb-0">
+          <img id="player-cover" src="" alt="Cover" class="w-16 h-16 rounded-lg shadow-md mr-4 object-cover">
+          <div class="flex-1 min-w-0 w-full">
+            <div id="current-title" class="font-semibold truncate whitespace-nowrap overflow-hidden">Select an episode to play</div>
+            <div id="current-author" class="text-sm text-white text-opacity-80"></div>
+          </div>
+        </div>
+        <div class="flex-1 mx-0 md:mx-8">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span id="current-time">0:00</span>
+            <span id="duration-time">0:00</span>
+          </div>
+          <input id="seek-bar" type="range" min="0" max="100" value="0" class="w-full player-progress">
+        </div>
+        <div class="flex items-center space-x-4 mt-4 md:mt-0">
+          <button id="prev-btn" class="material-icons text-3xl hover:text-white text-opacity-80 hover:text-opacity-100 transition">skip_previous</button>
+          <button id="play-pause-btn" class="material-icons text-4xl hover:text-white text-opacity-80 hover:text-opacity-100 transition transform hover:scale-110">play_arrow</button>
+          <button id="next-btn" class="material-icons text-3xl hover:text-white text-opacity-80 hover:text-opacity-100 transition">skip_next</button>
+          <audio id="player" class="hidden"></audio>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white py-16">
+  <div class="container mx-auto px-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <!-- Column 1: About -->
+      <div>
+        <div class="text-2xl font-bold mb-4 flex items-center">
+          <span class="material-icons mr-2 text-yellow-500">podcasts</span>
+          <span>PodcastHub</span>
+        </div>
+        <p class="text-gray-400 mb-4">Your go-to platform for discovering and enjoying the best podcasts around the world.</p>
+        <div class="flex space-x-4">
+          <a href="#" class="text-gray-400 hover:text-yellow-500 transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/></svg>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-yellow-500 transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.016 10.016 0 01-3.127 1.195 4.91 4.91 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.937 4.937 0 004.604 3.417 9.868 9.868 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.054 0 13.999-7.496 13.999-13.986 0-.209 0-.42-.015-.63a9.936 9.936 0 002.46-2.548l-.047-.02z"/></svg>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-yellow-500 transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/></svg>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-yellow-500 transition">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 3.993L9 16z"></path></svg>
+          </a>
+        </div>
+      </div>
+      
+      <!-- Column 2: Quick Links -->
+      <div>
+        <h5 class="font-semibold text-lg mb-4">Quick Links</h5>
+        <ul class="space-y-2">
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Home</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Discover</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Categories</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Top Charts</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Creator Studio</a></li>
+        </ul>
+      </div>
+      
+      <!-- Column 3: Support -->
+      <div>
+        <h5 class="font-semibold text-lg mb-4">Support</h5>
+        <ul class="space-y-2">
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Help Center</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Community Guidelines</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Contact Us</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Privacy Policy</a></li>
+          <li><a href="#" class="text-gray-400 hover:text-yellow-500 transition">Terms of Service</a></li>
+        </ul>
+      </div>
+      
+      <!-- Column 4: Newsletter -->
+      <div>
+        <h5 class="font-semibold text-lg mb-4">Stay Connected</h5>
+        <p class="text-gray-400 mb-4">Subscribe to our newsletter for the latest podcasts and audio content.</p>
+        <form class="flex flex-col space-y-2">
+          <input type="email" placeholder="Your email address" class="bg-gray-800 text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-yellow-500">
+          <button class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-medium px-4 py-2 rounded transition">Subscribe</button>
+        </form>
+        <p class="text-gray-500 text-sm mt-2">We respect your privacy. Unsubscribe at any time.</p>
+      </div>
+    </div>
+    
+    <!-- App Download Section -->
+    <div class="border-t border-gray-800 mt-12 pt-8">
+      <div class="flex flex-col md:flex-row items-center justify-between">
+        <div class="mb-6 md:mb-0">
+          <h5 class="font-semibold text-lg mb-2">Download Our App</h5>
+          <p class="text-gray-400">Listen to your favorite podcasts on the go.</p>
+        </div>
+        <div class="flex space-x-4">
+          <a href="#" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center transition">
+            <span class="material-icons mr-2">android</span>
+            <span>Android</span>
+          </a>
+          <a href="#" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded flex items-center transition">
+            <span class="material-icons mr-2">apple</span>
+            <span>iOS</span>
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Copyright and Legal Links -->
+    <div class="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between">
+      <p class="text-gray-400">© 2025 PodcastHub. All rights reserved.</p>
+      <div class="mt-4 md:mt-0">
+        <a href="#" class="text-gray-400 hover:text-yellow-500 transition mr-4">Privacy</a>
+        <a href="#" class="text-gray-400 hover:text-yellow-500 transition mr-4">Terms</a>
+        <a href="#" class="text-gray-400 hover:text-yellow-500 transition">Cookie Policy</a>
+      </div>
+    </div>
+  </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    // Toggle mobile menu
+    document.getElementById('nav-toggle').addEventListener('click', () => {
+      document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    // Helper: Format time
+    function formatTime(seconds) {
+      seconds = Math.floor(seconds);
+      const minutes = Math.floor(seconds / 60);
+      seconds = seconds % 60;
+      return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+
+    // Animations
+    function animateElements() {
+      const elements = document.querySelectorAll('.podcast-card, .category-btn');
+      elements.forEach((el, index) => {
+        gsap.fromTo(el, 
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.5, delay: index * 0.05 }
+        );
+      });
+    }
+
+    // Helper: render podcast card
+    function createCard(show, container) {
+      const card = document.createElement('div');
+      card.className = 'podcast-card relative bg-white rounded-xl shadow overflow-hidden group cursor-pointer hover:shadow-xl transition card-hover-effect';
+      
+      // Get podcast description and details
+      const description = show.description || show.collectionName;
+      const episodeCount = show.trackCount || '?';
+      const category = show.primaryGenreName || 'Podcast';
+      const rating = (Math.random() * 2 + 3).toFixed(1); // Random rating between 3-5
+      
+      card.innerHTML = `
+        <div class="relative">
+          <img src="${show.artworkUrl600}" alt="${show.collectionName}" class="w-full h-48 object-cover">
+          <div class="card-overlay absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <span class="card-play-icon material-icons text-white text-6xl transform transition-transform">play_circle_filled</span>
+          </div>
+          <div class="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-center">
+            <span class="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">${category}</span>
+            <span class="bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded-full flex items-center">
+              <span class="material-icons text-yellow-500 text-xs mr-1">star</span>${rating}
+            </span>
+          </div>
+        </div>
+        <div class="p-4">
+          <h4 class="font-semibold text-lg truncate">${show.collectionName}</h4>
+          <p class="text-sm text-gray-600 mb-2 truncate">${show.artistName}</p>
+          <div class="podcast-details">
+            <div class="flex justify-between text-xs text-gray-500 mt-2">
+              <span class="flex items-center"><span class="material-icons text-xs mr-1">podcasts</span>${episodeCount} episodes</span>
+              <span class="flex items-center"><span class="material-icons text-xs mr-1">headset</span>${Math.floor(Math.random() * 1000)}K</span>
+            </div>
+          </div>
+        </div>
+      `;
+      card.addEventListener('click', () => showModal(show));
+      container.appendChild(card);
+    }
+
+    // Fetch and display shows
+    async function fetchShows(term, containerId) {
+      try {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '<div class="col-span-full flex justify-center py-8"><span class="material-icons animate-spin text-4xl text-yellow-500">refresh</span></div>';
+        
+        const res = await fetch(`https://itunes.apple.com/search?media=podcast&term=${encodeURIComponent(term)}&limit=8&country=us`);
+        const { results } = await res.json();
+        
+        container.innerHTML = '';
+        results.forEach(show => createCard(show, container));
+        
+        // Animate the newly added podcast cards
+        animateElements();
+      } catch (err) { 
+        console.error(err);
+        document.getElementById(containerId).innerHTML = '<div class="col-span-full text-center text-red-500"><span class="material-icons mr-2">error</span>Failed to load podcasts. Please try again.</div>';
+      }
+    }
+
+    // Initial load with animation
+    window.addEventListener('DOMContentLoaded', () => {
+      // Add scroll padding for fixed header
+      document.documentElement.style.scrollPaddingTop = '80px';
+      
+      // Load initial content
+      setTimeout(() => {
+        fetchShows('technology', 'popular-list');
+        fetchShows('news', 'recommended-list');
+      }, 300);
+    });
+
+    // Smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href');
+        if (targetId === '#') return;
+        
+        const target = document.querySelector(targetId);
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+          
+          // Close mobile menu if open
+          document.getElementById('mobile-menu').classList.add('hidden');
+        }
+      });
+    });
+
+    function closeModalOnOutsideClick(event) {
+  const modalContent = document.querySelector('#episodes-modal > div');
+  if (event.target !== modalContent && !modalContent.contains(event.target)) {
+    document.getElementById('episodes-modal').classList.add('hidden');
+  }
+}
+
+// Make sure this is also in your script section:
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    document.getElementById('episodes-modal').classList.add('hidden');
+  }
+});
+    // Category button functionality
+    const categoryBtns = document.querySelectorAll('.category-btn');
+    categoryBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const term = btn.getAttribute('data-term');
+        document.getElementById('popular-title').textContent = `Browse: ${btn.innerText.trim()}`;
+        fetchShows(term, 'popular-list');
+        document.getElementById('popular').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Update active state
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Search handlers
+    function handleSearch(query) {
+      if (!query.trim()) return;
+      document.getElementById('popular-title').textContent = `Search Results: "${query}"`;
+      fetchShows(query, 'popular-list');
+      document.getElementById('popular').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    document.getElementById('nav-search-btn').addEventListener('click', () => {
+      handleSearch(document.getElementById('search-bar').value);
+    });
+    
+    document.getElementById('search-bar').addEventListener('keypress', e => {
+      if (e.key === 'Enter') handleSearch(e.target.value);
+    });
+    
+    document.getElementById('search-bar-mobile').addEventListener('keypress', e => {
+      if (e.key === 'Enter') handleSearch(e.target.value);
+    });
+
+    // Hero listen scroll
+    document.getElementById('hero-listen-btn').addEventListener('click', () => {
+      document.getElementById('popular').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // Modal handlers
+    document.getElementById('login-btn').addEventListener('click', () => document.getElementById('login-modal').classList.remove('hidden'));
+    document.getElementById('login-btn-mobile').addEventListener('click', () => document.getElementById('login-modal').classList.remove('hidden'));
+    document.getElementById('signup-btn').addEventListener('click', () => document.getElementById('signup-modal').classList.remove('hidden'));
+    document.getElementById('signup-btn-mobile').addEventListener('click', () => document.getElementById('signup-modal').classList.remove('hidden'));
+    
+    document.getElementById('login-close').addEventListener('click', () => document.getElementById('login-modal').classList.add('hidden'));
+    document.getElementById('signup-close').addEventListener('click', () => document.getElementById('signup-modal').classList.add('hidden'));
+    document.getElementById('login-modal-close').addEventListener('click', () => document.getElementById('login-modal').classList.add('hidden'));
+    document.getElementById('signup-modal-close').addEventListener('click', () => document.getElementById('signup-modal').classList.add('hidden'));
+
+    // Episodes Modal & Player logic
+    async function showModal(show) {
+      const modal = document.getElementById('episodes-modal');
+      const list = document.getElementById('episodes-list');
+      const modalTitle = document.getElementById('modal-podcast-title');
+      const modalAuthor = document.getElementById('modal-podcast-author');
+      const modalImage = document.getElementById('modal-podcast-img');
+      const modalDescription = document.getElementById('modal-podcast-description');
+      
+      // Update modal header
+      modalTitle.textContent = show.collectionName || 'Podcast Details';
+      modalAuthor.textContent = show.artistName || 'Unknown Author';
+      modalImage.src = show.artworkUrl600 || '';
+      modalDescription.textContent = 'Loading podcast details...';
+      
+      list.innerHTML = '<div class="flex justify-center py-4"><span class="material-icons animate-spin text-2xl text-yellow-500">refresh</span></div>';
+      modal.classList.remove('hidden');
+      
+      // Add entrance animation
+      gsap.fromTo(modal.querySelector('.bg-white'), 
+        { opacity: 0, y: 30, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.3 }
+      );
+      
+      try {
+        if (!show.feedUrl) {
+          list.innerHTML = '<p class="text-red-500 p-4 bg-red-50 rounded-lg">Feed URL not available for this podcast.</p>';
+          return;
+        }
+        
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(show.feedUrl)}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+        
+        // Update description from feed if available
+        modalDescription.textContent = data.feed.description || show.collectionName;
+        
+        list.innerHTML = '';
+        currentEpisodes = data.items.slice(0,10).map(item => ({ 
+          title: item.title, 
+          audio: item.enclosure?.link || '', 
+          cover: show.artworkUrl600,
+          author: show.artistName,
+          description: item.description?.substring(0, 120) + '...' || '',
+          pubDate: new Date(item.pubDate).toLocaleDateString() || ''
+        }));
+        
+        currentEpisodes.forEach((ep, idx) => {
+          if (!ep.audio) return; // Skip episodes without audio
+          
+          const epi = document.createElement('div');
+          epi.className = 'flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg transition-colors';
+          epi.innerHTML = `
+            <div class="flex-1 pr-4">
+              <div class="font-medium truncate-80">${ep.title}</div>
+              <div class="text-xs text-gray-500 flex items-center mt-1">
+                <span class="material-icons text-xs mr-1">calendar_today</span>
+                ${ep.pubDate}
+              </div>
+              <div class="text-xs text-gray-600 mt-1 line-clamp-2">${ep.description}</div>
+            </div>
+            <button data-index="${idx}" class="play-ep-btn material-icons text-gray-400 hover:text-yellow-500 transition w-10 h-10 flex items-center justify-center rounded-full hover:bg-yellow-50">play_arrow</button>
+          `;
+          
+          list.appendChild(epi);
+          epi.querySelector('.play-ep-btn').addEventListener('click', () => playEpisode(idx));
+        });
+        
+        // If no valid episodes
+        if (list.innerHTML === '') {
+          list.innerHTML = '<p class="text-gray-500 p-4 bg-gray-50 rounded-lg">No playable episodes found for this podcast.</p>';
+        }
+      } catch (err) {
+        console.error(err);
+        list.innerHTML = '<p class="text-red-500 p-4 bg-red-50 rounded-lg">Error loading episodes. Please try again.</p>';
+      }
+    }
+    
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('episodes-modal').classList.add('hidden');
+    });
+
+    // Player functionality
+    let currentEpisodes = [], currentIndex = 0;
+    const player = document.getElementById('player');
+    const playerContainer = document.getElementById('player-container');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const seekBar = document.getElementById('seek-bar');
+    const titleEl = document.getElementById('current-title');
+    const authorEl = document.getElementById('current-author');
+    const coverEl = document.getElementById('player-cover');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationTimeEl = document.getElementById('duration-time');
+    
+    function playEpisode(idx) {
+      const ep = currentEpisodes[idx];
+      if (!ep || !ep.audio) return;
+      
+      currentIndex = idx;
+      player.src = ep.audio;
+      titleEl.textContent = ep.title;
+      authorEl.textContent = ep.author;
+      coverEl.src = ep.cover;
+      
+      // Show player if hidden
+      if (playerContainer.classList.contains('hidden')) {
+        playerContainer.classList.remove('hidden');
+        gsap.fromTo(playerContainer, 
+          { y: '100%' },
+          { y: 0, duration: 0.3, ease: 'power2.out' }
+        );
+      }
+      
+      // Play audio
+      player.play().catch(err => {
+        console.error('Playback failed:', err);
+        // Show error notification
+        alert('Sorry, playback failed. The audio may not be available.');
+      });
+      
+      playPauseBtn.textContent = 'pause';
+      
+      // Close modal if open
+      document.getElementById('episodes-modal').classList.add('hidden');
+    }
+    
+    // Player controls
+    playPauseBtn.addEventListener('click', () => {
+      if (player.paused) {
+        player.play();
+        playPauseBtn.textContent = 'pause';
+      } else {
+        player.pause();
+        playPauseBtn.textContent = 'play_arrow';
+      }
+    });
+    
+    prevBtn.addEventListener('click', () => {
+      if (currentIndex > 0) playEpisode(currentIndex - 1);
+    });
+    
+    nextBtn.addEventListener('click', () => {
+      if (currentIndex < currentEpisodes.length - 1) playEpisode(currentIndex + 1);
+    });
+    
+    // Time update - progress bar and time display
+    player.addEventListener('timeupdate', () => {
+      if (player.duration) {
+        seekBar.value = (player.currentTime / player.duration) * 100;
+        currentTimeEl.textContent = formatTime(player.currentTime);
+      }
+    });
+    
+    // Duration change - update total time
+    player.addEventListener('durationchange', () => {
+      if (player.duration && isFinite(player.duration)) {
+        durationTimeEl.textContent = formatTime(player.duration);
+      } else {
+        durationTimeEl.textContent = '--:--';
+      }
+    });
+    
+    // Set progress when user drags seek bar
+    seekBar.addEventListener('input', () => {
+      if (player.duration) {
+        player.currentTime = (seekBar.value / 100) * player.duration;
+      }
+    });
+    
+    // Handle player errors
+    player.addEventListener('error', () => {
+      alert('Error playing this episode. The audio may not be available.');
+      if (currentIndex < currentEpisodes.length - 1) {
+        playEpisode(currentIndex + 1);
+      }
+    });
+    
+    // Auto-play next episode when current finishes
+    player.addEventListener('ended', () => {
+      if (currentIndex < currentEpisodes.length - 1) {
+        playEpisode(currentIndex + 1);
+      } else {
+        playPauseBtn.textContent = 'play_arrow';
+      }
+    });
+  </script>
+</body>
+</html> 
